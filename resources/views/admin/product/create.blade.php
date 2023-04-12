@@ -8,16 +8,17 @@
       <form method="post" enctype="multipart/form-data" action="{{route('product.store')}}">
         {{csrf_field()}}
         <div class="form-group">
-          <label for="inputTitle" class="col-form-label">Title <span class="text-danger">*</span></label>
-          <input id="inputTitle" type="text" name="title" placeholder="Enter title"  value="{{old('title')}}" class="form-control">
-          @error('title')
+          <label for="inputTitle" class="col-form-label">Product Name <span class="text-danger">*</span></label>
+          <input id="inputTitle" type="text" name="name" placeholder="Enter product name"  value="{{old('name')}}" class="form-control">
+          @error('name')
           <span class="text-danger">{{$message}}</span>
           @enderror
         </div>
+        
 
         <div class="form-group">
           <label for="summary" class="col-form-label">Summary <span class="text-danger">*</span></label>
-          <textarea class="form-control" id="summary" name="summary">{{old('summary')}}</textarea>
+          <textarea class="form-control" id="summaryy" name="summary">{{old('summary')}}</textarea>
           @error('summary')
           <span class="text-danger">{{$message}}</span>
           @enderror
@@ -25,7 +26,7 @@
 
         <div class="form-group">
           <label for="description" class="col-form-label">Description</label>
-          <textarea class="form-control" id="description" name="description">{{old('description')}}</textarea>
+          <textarea class="form-control" id="descriptionn" name="description">{{old('description')}}</textarea>
           @error('description')
           <span class="text-danger">{{$message}}</span>
           @enderror
@@ -67,7 +68,7 @@
         </div>
         <div class="form-group select2-purple">
           <label for="size">Size</label>
-          <select name="size[]" class="select2" multiple="multiple" data-dropdown-css-class="select2-purple" data-placeholder="Select a Size" style="width: 100%;">
+          <select name="availbleSizes[]" class="select2" multiple="multiple" data-dropdown-css-class="select2-purple" data-placeholder="Select a Size" style="width: 100%;">
               <option value="">--Select any size--</option>
               <option value="S">Small (S)</option>
               <option value="M">Medium (M)</option>
@@ -77,7 +78,7 @@
         </div>
         <div class="form-group select2-purple">
           <label for="color">Color</label>
-          <select name="color[]" class="select2" multiple="multiple" data-dropdown-css-class="select2-purple" data-placeholder="Select a Color" style="width: 100%;">
+          <select name="availbleColor[]" class="select2" multiple="multiple" data-dropdown-css-class="select2-purple" data-placeholder="Select a Color" style="width: 100%;">
               <option value="">--Select any color--</option>
               <option value="black">black</option>
               <option value="red">red</option>
@@ -116,8 +117,8 @@
 
         <div class="form-group">
           <label for="stock">Quantity <span class="text-danger">*</span></label>
-          <input id="quantity" type="number" name="stock" min="0" placeholder="Enter quantity"  value="{{old('stock')}}" class="form-control">
-          @error('stock')
+          <input id="quantity" type="number" name="quantity" min="0" placeholder="Enter quantity"  value="{{old('quantity')}}" class="form-control">
+          @error('quantity')
           <span class="text-danger">{{$message}}</span>
           @enderror
         </div>

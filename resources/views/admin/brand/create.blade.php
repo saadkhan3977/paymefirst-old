@@ -9,12 +9,26 @@
         {{csrf_field()}}
         <div class="form-group">
           <label for="inputTitle" class="col-form-label">Title <span class="text-danger">*</span></label>
-        <input id="inputTitle" type="text" name="title[]" placeholder="Enter title"  value="{{old('title')}}" class="form-control">
-        <input id="inputTitle" type="text" name="title[]" placeholder="Enter title"  value="{{old('title')}}" class="form-control">
-        <input id="inputTitle" type="text" name="title[]" placeholder="Enter title"  value="{{old('title')}}" class="form-control">
+        <input id="inputTitle" type="text" name="title" placeholder="Enter title"  value="{{old('title')}}" class="form-control">
         @error('title')
         <span class="text-danger">{{$message}}</span>
         @enderror
+        </div>
+        
+        <div class="form-group">
+          <label for="inputPhoto" class="col-form-label">Photo <span class="text-danger">*</span></label>
+          <div class="input-group">
+              <span class="input-group-btn">
+                  <a id="lfm" data-input="thumbnail" data-preview="holder" class="btn btn-primary">
+                  <i class="fa fa-picture-o"></i> Choose
+                  </a>
+              </span>
+          <input id="thumbnail" multiple class="form-control" type="text" name="photo" value="{{old('photo')}}">
+        </div>
+        <div id="holder" style="margin-top:15px;max-height:100px;"></div>
+          @error('photo')
+          <span class="text-danger">{{$message}}</span>
+          @enderror
         </div>
         
         <div class="form-group">
@@ -43,6 +57,8 @@
 @push('scripts')
 <script src="/vendor/laravel-filemanager/js/stand-alone-button.js"></script>
 <script src="{{asset('backend/summernote/summernote.min.js')}}"></script>
+
+<script src="{{asset('/')}}/vendor/laravel-filemanager/js/stand-alone-button.js"></script>
 <script>
     $('#lfm').filemanager('image');
 

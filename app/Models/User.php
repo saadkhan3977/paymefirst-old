@@ -44,6 +44,11 @@ class User extends Authenticatable
         return $this->hasOne(UserCardDetail::class,'user_id','id');
     }
     
+    public function child()
+    {
+        return $this->hasOne(Child::class,'user_id','id');
+    }
+    
     public function wallet()
     {
         return $this->hasOne(Wallet::class,'user_id','id');

@@ -10,16 +10,16 @@
         @csrf 
         @method('PATCH')
         <div class="form-group">
-          <label for="inputTitle" class="col-form-label">Title <span class="text-danger">*</span></label>
-          <input id="inputTitle" type="text" name="title" placeholder="Enter title"  value="{{$product->title}}" class="form-control">
-          @error('title')
+          <label for="inputTitle" class="col-form-label">name <span class="text-danger">*</span></label>
+          <input id="inputname" type="text" name="name" placeholder="Enter name"  value="{{$product->name}}" class="form-control">
+          @error('name')
           <span class="text-danger">{{$message}}</span>
           @enderror
         </div>
 
         <div class="form-group">
           <label for="summary" class="col-form-label">Summary <span class="text-danger">*</span></label>
-          <textarea class="form-control" id="summary" name="summary">{{$product->summary}}</textarea>
+          <textarea class="form-control" id="summaryy" name="summary">{{$product->summary}}</textarea>
           @error('summary')
           <span class="text-danger">{{$message}}</span>
           @enderror
@@ -27,7 +27,7 @@
 
         <div class="form-group">
           <label for="description" class="col-form-label">Description</label>
-          <textarea class="form-control" id="description" name="description">{{$product->description}}</textarea>
+          <textarea class="form-control" id="descriptionn" name="description">{{$product->description}}</textarea>
           @error('description')
           <span class="text-danger">{{$message}}</span>
           @enderror
@@ -68,11 +68,11 @@
         </div>
         <div class="form-group">
           <label for="size">Size</label>
-          <select name="size[]" class="form-control selectpicker"  multiple data-live-search="true">
+          <select name="availbleSizes[]" class="form-control selectpicker"  multiple data-live-search="true">
               <option value="">--Select any size--</option>
               @foreach($items as $item)              
                 @php 
-                $data=explode(',',$item->size);
+                $data=explode(',',$item->availbleSizes);
                 // dd($data);
                 @endphp
               <option value="S"  @if( in_array( "S",$data ) ) selected @endif>Small</option>
@@ -84,11 +84,11 @@
         </div>
         <div class="form-group">
           <label for="color">Color</label>
-          <select name="color[]" class="form-control selectpicker"  multiple data-live-search="true">
+          <select name="availbleColor[]" class="form-control selectpicker"  multiple data-live-search="true">
               <option value="">--Select any Color--</option>
               @foreach($items as $item)              
                 @php 
-                $data=explode(',',$item->color);
+                $data=explode(',',$item->availbleColor);
                 // dd($data);
                 @endphp
               <option value="black"  @if( in_array( "black",$data ) ) selected @endif>black</option>
@@ -126,8 +126,8 @@
 
         <div class="form-group">
           <label for="stock">Quantity <span class="text-danger">*</span></label>
-          <input id="quantity" type="number" name="stock" min="0" placeholder="Enter quantity"  value="{{$product->stock}}" class="form-control">
-          @error('stock')
+          <input id="quantity" type="number" name="quantity" min="0" placeholder="Enter quantity"  value="{{$product->quantity}}" class="form-control">
+          @error('quantity')
           <span class="text-danger">{{$message}}</span>
           @enderror
         </div>

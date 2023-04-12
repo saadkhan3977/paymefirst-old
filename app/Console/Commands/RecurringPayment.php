@@ -38,7 +38,8 @@ class RecurringPayment extends Command
     {
         try 
         {
-            $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+            // $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+            $stripe = \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
             $users = User::with('goal')->get();
             foreach($users as $user)
             {
@@ -110,6 +111,7 @@ class RecurringPayment extends Command
                                         'status' => 'Credit',
                                     ]);
 									
+                                    
                                     $point = Helper::goalpoint();
 									
 									$user->goal->delete();
@@ -179,7 +181,7 @@ class RecurringPayment extends Command
                                         'status' => 'Credit',
                                     ]);
 
-                                    $point = Helper::goalpoint();
+                                    $point = Helper::lategoalpoint();
 									
 									$user->goal->delete();
                                     $wallet->update([
@@ -247,7 +249,7 @@ class RecurringPayment extends Command
                                         'status' => 'Credit',
                                     ]);
                                    
-                                    $point = Helper::goalpoint();
+                                    $point = Helper::lategoalpoint();
 									
 									$user->goal->delete();
                                     $wallet->update([
@@ -314,7 +316,7 @@ class RecurringPayment extends Command
                                         'type' => 'Credit',
                                         'status' => 'Credit',
                                     ]);
-                                    $point = Helper::goalpoint();
+                                    $point = Helper::lategoalpoint();
 									
 									$user->goal->delete();
                                     $wallet->update([
@@ -330,7 +332,7 @@ class RecurringPayment extends Command
                                         'amount' => 0,
                                     ]);
                                 }
-                            }
+                            } 
                         }
                     
                         if($user->goal->plan == 'bi-weekly')
@@ -344,7 +346,7 @@ class RecurringPayment extends Command
                             {
                                 Helper::onedaybefore();
                             }
-                            if($days > '14')
+                            if($days == '15')
                             {
                                 $charge = \Stripe\Charge::create([
                                     'amount' => $user->goal->amount_per_deduction*100,
@@ -381,6 +383,68 @@ class RecurringPayment extends Command
                                     ]);
                                     
                                     $point = Helper::goalpoint();
+									
+									$user->goal->delete();
+                                    $wallet->update([
+                                        'amount' => $wallet->amout + $temporarywallet->amount,
+                                    ]);
+
+                                    $user->update([
+                                        'is_goal' => 0,
+										'points' => $point
+                                    ]);
+
+                                    $temporarywallet->update([
+                                        'amount' => 0,
+                                    ]);
+                                }
+                            }
+                            
+                            if($days == '28')
+                            {
+                                Helper::twodaybefore();
+                            }
+                            if($days == '29')
+                            {
+                                Helper::onedaybefore();
+                            }
+                            if($days == '30')
+                            {
+                                $charge = \Stripe\Charge::create([
+                                    'amount' => $user->goal->amount_per_deduction*100,
+                                    'currency' => 'usd',
+                                    'customer' => $user->stripe_id,
+                                ]);
+
+                                Payment::create([
+                                    'amount' => $user->goal->amount_per_deduction,
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+                                $user->goal->update([
+                                    'cnd' => $user->goal->cnd + 1
+                                ]);
+                                $temporarywallet->update([
+                                    'amount' => $temporarywallet->amount + $user->goal->amount_per_deduction,
+                                ]);
+                                
+                                Helper::payment_charge();
+                                if($user->goal->cnd == $user->goal->number_deduction)
+                                {
+                                    Helper::goal_complete();                                  
+                                    Payment::where('customer_id',$user->stripe_id)->delete();
+                                    Helper::goal_history($user->id);
+                                    
+                                    Tranasaction::create([
+                                        'user_id' => $user->id,
+                                        'amount' => $wallet->amout + $temporarywallet->amount,
+                                        'date' => date('M-d-Y'),
+                                        'reason' => 'Goal Complete',
+                                        'type' => 'Credit',
+                                        'status' => 'Credit',
+                                    ]);
+                                    
+                                    $point = Helper::lategoalpoint();
 									
 									$user->goal->delete();
                                     $wallet->update([

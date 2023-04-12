@@ -73,13 +73,13 @@ class ProductController extends Controller
         $size=$request->input('size');
         $color=$request->input('color');
         if($size){
-            $data['size']=implode(',',$size);
+            $data['size']=json_encode($size);
         }
         else{
             $data['size']='';
         }
         if($color){
-            $data['color']=implode(',',$color);
+            $data['color']=json_encode($color);
         }
         else{
             $data['color']='';
@@ -136,13 +136,13 @@ class ProductController extends Controller
     {
         $product=Product::findOrFail($id);
         $this->validate($request,[
-            'title'=>'string|required',
+            'name'=>'string|required',
             'summary'=>'string|required',
             'description'=>'string|nullable',
             'photo'=>'string|required',
-            'size'=>'nullable',
-            'color'=>'nullable',
-            'stock'=>"required|numeric",
+            'availbleSizes'=>'nullable',
+            'availbleColor'=>'nullable',
+            'quantity'=>"required|numeric",
             'cat_id'=>'required|exists:categories,id',
             'is_featured'=>'sometimes|in:1',
             'brand_id'=>'nullable|exists:brands,id',
@@ -154,21 +154,34 @@ class ProductController extends Controller
 
         $data=$request->all();
         $data['is_featured']=$request->input('is_featured',0);
-        $size=$request->input('size');
-        $color=$request->input('color');
-        if($size){
-            $data['size']=implode(',',$size);
-        }
-        else{
-            $data['size']='';
-        }
-        if($color){
-            $data['color']=implode(',',$color);
-        }
-        else{
-            $data['color']='';
-        }
+        // $size=$request->input('availbleSizes');
+        // $color=$request->input('availbleColor');
+        // if($size){
+        //     $data['size']=implode(',',$size);
+        // }
+        // else{
+        //     $data['size']='';
+        // }
+        // if($color){
+        //     $data['color']=implode(',',$color);
+        // }
+        // else{
+        //     $data['color']='';
+        // }
+        // if($size){
+        //     $data['availbleSizes']=json_encode($size);
+        // }
+        // else{
+        //     $data['availbleSizes']='';
+        // }
+        // if($color){
+        //     $data['availbleColor']=json_encode($color);
+        // }
+        // else{
+        //     $data['availbleColor']='';
+        // }
         // return $data;
+        $data['photo'] = [$request->photo];
         $status=$product->fill($data)->save();
         if($status){
             request()->session()->flash('success','Product Successfully updated');

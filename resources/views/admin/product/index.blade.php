@@ -61,13 +61,13 @@
               @endphp
                 <tr>
                     <td>{{$product->id}}</td>
-                    <td>{{$product->title}}</td>
+                    <td>{{$product->name}}</td>
                     <td>{{$product->cat_info['title']}}</td>
                     <td>{{(($product->is_featured==1)? 'Yes': 'No')}}</td>
                     <td>Rs. {{$product->price}} /-</td>
                     <td>  {{$product->discount}}% OFF</td>
-                    <td>{{$product->size}}</td>
-                    <td>{{$product->color}}</td>
+                    <td>{{$product->availbleSizes}}</td>
+                    <td>{{$product->availbleColor}}</td>
                     <td>{{$product->condition}}</td>
                     <td> {{ucfirst($product->brand->title)}}</td>
                     <td>

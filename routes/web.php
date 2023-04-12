@@ -26,6 +26,7 @@ Route::group(['middleware' => ['auth']], function () {
     
     Route::get('/helper', [App\Http\Controllers\NotificationController::class, 'helper']);
     Route::resource('/notification',App\Http\Controllers\NotificationController::class);
+    Route::resource('/orders',App\Http\Controllers\OrdersController::class);
  	Route::resource('trophy',App\Http\Controllers\TrophyController::class);
     Route::get('/home', [App\Http\Controllers\DashboardController::class, 'dashboard'])->name('home');
     Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'dashboard'])->name('dashboard');

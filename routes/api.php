@@ -46,6 +46,7 @@ Route::group(['middleware' => ['api','auth:api'], 'prefix' => 'auth'], function 
     Route::get('category', [\App\Http\Controllers\Api\CategoryController::class, 'index']); 
     Route::get('brand', [\App\Http\Controllers\Api\BrandController::class, 'index']); 
     Route::get('product', [\App\Http\Controllers\Api\ProductController::class, 'index']); 
+    Route::get('product/{brand}', [\App\Http\Controllers\Api\ProductController::class, 'brand_product']); 
 	Route::resource('cart',App\Http\Controllers\Api\CartController::class);
 	
 	Route::resource('trophy',App\Http\Controllers\Api\TrophyController::class);
@@ -55,6 +56,9 @@ Route::group(['middleware' => ['api','auth:api'], 'prefix' => 'auth'], function 
 	Route::post('updatecard', [\App\Http\Controllers\UserCardController::class, 'updatecard']); 
     Route::get('me', [\App\Http\Controllers\Api\RegisterController::class, 'me']);
     Route::get('user', [\App\Http\Controllers\Api\RegisterController::class, 'user']);
+    Route::get('orders', [\App\Http\Controllers\Api\OrderController::class, 'orders']);
+    Route::get('children_orders', [\App\Http\Controllers\Api\OrderController::class, 'childorders']);
+    Route::post('order/{status}', [\App\Http\Controllers\Api\OrderController::class, 'orders_status']);
     Route::get('transaction', [\App\Http\Controllers\TranasactionController::class, 'index']);
     Route::post('withdraw', [\App\Http\Controllers\TranasactionController::class, 'store']);
     Route::get('withdraw/list', [\App\Http\Controllers\TranasactionController::class, 'index']);

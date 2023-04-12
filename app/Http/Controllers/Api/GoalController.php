@@ -18,7 +18,7 @@ class GoalController extends BaseController
     
     public function __construct()
     {
-          $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+          $stripe = \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
     }
 
     public function list(GoalHistory $goalhistory)
@@ -86,7 +86,7 @@ class GoalController extends BaseController
             ]);
             
             
-            $user = User::with(['goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first();
+            $user = User::with(['child','goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first();
             // $wallet = TemporaryWallet::where('user_id',Auth::user()->id)->get();
 
             return response()->json(['success'=>true,'message'=>'Record Created Successfully','data'=>$user]);

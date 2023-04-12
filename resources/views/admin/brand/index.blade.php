@@ -20,6 +20,7 @@
             <tr>
               <th>S.N.</th>
               <th>Title</th>
+              <th>Image</th>
               <th>Slug</th>
               <th>Status</th>
               <th>Action</th>
@@ -29,6 +30,7 @@
             <tr>
               <th>S.N.</th>
               <th>Title</th>
+              <th>Image</th>
               <th>Slug</th>
               <th>Status</th>
               <th>Action</th>
@@ -39,6 +41,7 @@
                 <tr>
                     <td>{{$brand->id}}</td>
                     <td>{{$brand->title}}</td>
+                    <td><img src="{{$brand->photo}}" width="100" alt=""></td>
                     <td>{{$brand->slug}}</td>
                     <td>
                         @if($brand->status=='active')

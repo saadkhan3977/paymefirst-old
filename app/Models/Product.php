@@ -9,7 +9,7 @@ class Product extends Model
 {
     use HasFactory;
 
-    protected $fillable=['title','slug','summary','description','cat_id','price','brand_id','discount','status','photo','size','color','stock','is_featured','condition'];
+    protected $fillable=['name','slug','summary','description','cat_id','price','brand_id','discount','status','photo','availbleSizes','availbleColor','quantity','is_featured','condition'];
 
     public function cat_info()
     {

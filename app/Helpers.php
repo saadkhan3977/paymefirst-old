@@ -29,9 +29,9 @@ class Helper{
         ]);
     }
 
-    public static function goal_complete()
+    public static function goal_complete($id)
     {
-        $userss = User::find($user->id);
+        $userss = User::find($id);
         $details=[
             'title'=>'Admin',
             'description'=>'Goal Complete',
@@ -39,9 +39,9 @@ class Helper{
         return \Notification::send($userss, new StatusNotification($details));
     }
     
-    public static function payment_charge()
+    public static function payment_charge($id)
     {
-        $userss = User::find($user->id);
+        $userss = User::find($id);
         $details=[
             'title'=>'Admin',
             'description'=>'Payment Charged',
@@ -49,9 +49,9 @@ class Helper{
         return \Notification::send($userss, new StatusNotification($details));
     }
 
-    public static function onedaybefore()
+    public static function onedaybefore($id)
     {
-        $userss = User::find($user->id);
+        $userss = User::find($id);
         $details=[
             'title'=>'Admin',
             'description'=>'Payment will be charged soon after 2 days.',
@@ -69,9 +69,9 @@ class Helper{
         return \Notification::send($userss, new StatusNotification($details));
     }
     
-    public static function goalpoint()
+    public static function goalpoint($id)
     {
-        $gh = GoalHistory::where('user_id',$user->id)->count();		
+        /* $gh = GoalHistory::where('user_id',$user->id)->count();		
         $point = $user->points + 5;
         //}
         if($gh == 3)
@@ -85,8 +85,30 @@ class Helper{
         if($gh == 5)
         {
             $point = $user->points + 15;
+        } */
+        $user = User::find($id);
+        $gh = GoalHistory::where('user_id',$id)->count();	
+        
+        $point = $user->points + 10;
+        
+        if($gh == 5)
+        {
+            $point = $user->points + 10;
         }
         return $point;
+    }
+    
+    public static function lategoalpoint($subtract,$id)
+    {
+        $user = User::find($id);
+        $gh = GoalHistory::where('user_id',$id)->count();		
+        $point = $user->points + 10;
+        
+        if($gh == 5)
+        {
+            $point = $point + 10;
+        }
+        return $point - $subtract;
     }
 }
 

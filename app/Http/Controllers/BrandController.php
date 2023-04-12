@@ -21,12 +21,13 @@ class BrandController extends Controller
 
     public function store(Request $request)
     {
-        return $request->title;
+        
         $this->validate($request,[
             'title'=>'string|required',
         ]);
+
         $data=$request->all();
-        $slug=Str::slug($request->title);
+        $slug = Str::slug($request->title);
         $count=Brand::where('slug',$slug)->count();
         if($count>0){
             $slug=$slug.'-'.date('ymdis').'-'.rand(0,999);

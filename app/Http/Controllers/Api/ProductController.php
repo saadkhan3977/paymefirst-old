@@ -20,4 +20,17 @@ class ProductController extends Controller
             return $this->sendError($e->getMessage());
         }
     }
+    
+    public function brand_product($id)
+    {
+        try
+        {
+            $product = Product::where('brand_id',$id)->get();
+            return response()->json(['success'=>true,'data'=>$product]);
+        }
+        catch(\Eception $e)
+        {
+            return $this->sendError($e->getMessage());
+        }
+    }
 }

@@ -12,7 +12,7 @@ class UserCardController extends Controller
     
     public function __construct()
     {
-          $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+          $stripe = \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
     }
 	
 	

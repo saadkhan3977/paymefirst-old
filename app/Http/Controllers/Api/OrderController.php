@@ -9,6 +9,8 @@ use App\Models\OrderDetail;
 use App\Models\Order;
 use App\Models\Wallet;
 use Stripe;
+use Illuminate\Support\Facades\Validator;
+
 
 use Auth;
 
@@ -18,7 +20,68 @@ class OrderController extends Controller
 
     public function __construct()
     {
-        $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+        $stripe = \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
+    }
+
+    public function orders()
+    {
+        try
+        {
+            // return Auth::user()->id;
+            $wallet = Wallet::where('user_id',Auth::user()->id)->first();
+            // $order = Order::with('shipping','order_detail.product')->where(['user_id'=>Auth::user()->id,'status'=>$status])->get();
+            $order = Order::with('shipping','order_detail.product')->where(['user_id'=>Auth::user()->id])->where('status','!=','parent-approval')->orderBy('id','desc')->get();
+            return response()->json(['success'=>true,'message'=>'Order Placed Successfully','data'=>$order]);
+        }
+        catch(\Eception $e)
+        {
+            return response()->json(['success'=>false,'message'=>$e->getMessage()]);
+        }
+    }
+    
+    public function childorders()
+    {
+        try
+        {
+            // return Auth::user()->id;
+            $wallet = Wallet::where('user_id',Auth::user()->id)->first();
+            $order = Order::with('shipping','order_detail.product')->where(['user_id'=>Auth::user()->id,'status'=>'parent-approval','role'=>'Child'])->get();
+            // $order = Order::with('shipping','order_detail.product')->where(['user_id'=>Auth::user()->id,'role'=>Auth::user()->current_role])->get();
+            return response()->json(['success'=>true,'message'=>'Order Placed Successfully','data'=>$order]);
+        }
+        catch(\Eception $e)
+        {
+            return response()->json(['success'=>false,'message'=>$e->getMessage()]);
+        }
+    }
+    
+    
+    public function orders_status(Request $request,$id)
+    {
+        try
+        {
+            $order = Order::where('id',$id)->first();
+            // return $order;
+            if($request->status == 'approved')
+            {
+                $order->status = 'admin-approval';
+                $order->save();
+                $order = Order::with('shipping')->where('user_id',Auth::user()->id)->get();
+                return response()->json(['success'=>true,'message'=>'Order Placed Successfully','data'=>$order]);
+            }
+            
+            if($request->status == 'rejected')
+            {
+                $order->status = 'rejected';
+                $order->save();
+                $order = Order::with('shipping')->where('user_id',Auth::user()->id)->get();
+                return response()->json(['success'=>true,'message'=>'Order Rejected Successfully','data'=>$order]);
+            }
+        }
+        catch(\Eception $e)
+        {
+            return response()->json(['success'=>false,'message'=>$e->getMessage()]);
+        }
     }
 
 
@@ -28,20 +91,15 @@ class OrderController extends Controller
         {
             $orderid = 'ORD-'.strtoupper(\Str::random(10));
             $validator = \Validator::make($request->all(),[
-                'product_id'=>'required',
+                // 'product'=>'required',
                 'shipping_id'=>'required',
-                'size'=>'required',
-                'color'=>'required',
-                'quantity'=>'required',
-                // 'price'=>'required',
+       
                 'total_amount'=>'required',
                 'address'=>'required',
-                'longitude'=>'required',
-                'latitude'=>'required',
                 'method'=>'required',
             ]);
             if($validator->fails()) {
-                return response()->json(['success'=>false,'message'=>$validator->errors()]);    
+                return response()->json(['success'=>false,'message'=>$validator->errors()],500);    
             }
             $wallet =Wallet::where('user_id',Auth::user()->id)->first();
 
@@ -52,50 +110,55 @@ class OrderController extends Controller
                 {
                     return response()->json(['success'=>false,'message'=>"You Don't hane enough amount in your wallet"]);    
                 }
-                else
-                {
-                    $wallet->amount = $wallet->amount - $request->total_amount;
-                    $wallet->save(); 
+                // if(Auth::user()->current_role != 'Child')
+                // {
+                //     $wallet->amount = $wallet->amount - $request->total_amount;
+                //     $wallet->save(); 
+                // }
+                    // else
+            }
+            // else
+            // {
+            //     $token = $request->input('stripeToken');
+            //     Stripe\Charge::create ([
+            //         "amount" => $request->total_amount * 100,
+            //         "currency" => "usd",
+            //         "source" => $request->stripeToken,
+            //         "description" => "This is a Pay Me First Checkout transaction" 
+            //     ]);
+            // }
+           
+            
+            foreach($request->product as $product)
+            {
+                // $product = Product::find($productid->id);
+                OrderDetail::create([
+                    'order_no' => $orderid,
+                    'product_id' => $product['product_id'],
+                    'color' => $product['selectedColor'],
+                    'size' => $product['selectedSize'],
+                    'quantity' => $product['selectedQuantity'],
+                ]);
+            }
 
-                }
+            if(Auth::user()->current_role == 'Child')
+            {
+                $status = 'parent-approval';
             }
             else
             {
-                $token = $request->input('stripeToken');
-                Stripe\Charge::create ([
-                    "amount" => $request->total_amount * 100,
-                    "currency" => "usd",
-                    "source" => $request->stripeToken,
-                    "description" => "This is a Pay Me First Checkout transaction" 
-                ]);
+                $status = 'admin-approval';
             }
-
-            $size = json_decode($request->size);
-            $color = json_decode($request->color);
-            $quantity = json_decode($request->quantity);
-            foreach(json_decode($request->product_id) as $key => $productid)
-            {
-                $product = Product::find($productid);
-                OrderDetail::create([
-                    'order_no' => $orderid,
-                    'product_id' => $productid,
-                    'color' => $color[$key],
-                    'size' => $size[$key],
-                    'quantity' => $quantity[$key],
-                ]);
-            }
-
             $order=new Order();
             $order_data=$request->all();
             $order->order_number =  $orderid;
             $order->user_id =  Auth::user()->id;
             $order->shipping_id = $request->shipping_id;
             $order->total_amount = $request->total_amount;
-            $order->country = $request->country;
-            $order->longitude = $request->longitude;
             $order->address = $request->address;
-            $order->latitude = $request->latitude;
+            $order->status = $status;
             $order->payment_method = $request->method;
+            $order->role = Auth::user()->current_role;
             $order->save();
             
             return response()->json(['success'=>true,'message'=>'Order Placed Successfully','data'=>$order]);

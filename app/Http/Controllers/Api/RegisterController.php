@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Payment;
 use App\Models\Goal;
+use App\Models\Child;
 use App\Models\TemporaryWallet;
+use App\Models\Tranasaction;
 use App\Models\Wallet;
 use Illuminate\Support\Facades\Auth;
 use Validator;
@@ -27,7 +29,7 @@ class RegisterController extends BaseController
 
     public function __construct()
     {
-          $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+          $stripe = \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
     }
 
     public function register(Request $request)
@@ -35,6 +37,11 @@ class RegisterController extends BaseController
 		$validator = Validator::make($request->all(), [
             'first_name' => 'required|string',
             'last_name' => 'required|string',
+            'child_name' => 'required|string',
+            'child_age' => 'required|string',
+            'child_gander' => 'required|string',
+            'child_image' =>'required|string',
+            'passcode' => 'required|numeric',
             'phone' => 'required|numeric|unique:users',
             'country' => 'required|string',
             'email' => 'required|email|unique:users',			
@@ -54,7 +61,7 @@ class RegisterController extends BaseController
 				$file->move('uploads/user/profiles/', $fileName);  
 				$profile = asset('uploads/user/profiles/'.$fileName);
 				}
-        $input = $request->except(['c_password'],$request->all());
+        $input = $request->except(['c_password','child_name','child_age','child_gander'],$request->all());
         $input['password'] = bcrypt($input['password']);
         $input['photo'] = $profile;
 		$input['current_plan'] = 'basic';
@@ -64,6 +71,14 @@ class RegisterController extends BaseController
         $input['email_code'] = mt_rand(9000, 9999);
         $user = User::create($input);
 
+        Child::create([
+            'user_id' => $user->id,
+            'name' => $request->child_name,
+            'age' => $request->child_age,
+            'gander' => $request->child_gander,
+            'image' => $request->child_image,
+        ]);
+        
         TemporaryWallet::create([
             'user_id' => $user->id,
             'amount' => 0,
@@ -78,7 +93,7 @@ class RegisterController extends BaseController
         
         Mail::to($user->email)->send(new SendVerifyCode($input['email_code']));
         $token =  $user->createToken('app_api')->accessToken;
-		$users = User::with(['goal','temporary_wallet','wallet','payments'])->where('id',$user->id)->first();
+		$users = User::with(['child','goal','temporary_wallet','wallet','payments'])->where('id',$user->id)->first();
 		return response()->json(['success'=>true,'message'=>'User register successfully' ,'token'=>$token,'user_info'=>$users]);
     }
 
@@ -88,16 +103,21 @@ class RegisterController extends BaseController
         {
             $validator = Validator::make($request->all(), [
                 'email' => 'required|email|exists:users',
+                'current_role' => 'required',        
                 'password' => 'required',        
             ]);  
             if($validator->fails()){
 				return $this->sendError($validator->errors()->first());
             }
             $user = User::firstWhere('email',$request->email);
+
+            
             // if($user->email_verified_at != null)
             // {
                 if(Auth::attempt(['email' => $request->email, 'password' => $request->password])){ 
-                    $user = User::with(['goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first(); 
+                    $user = User::with(['child','goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first(); 
+                    $user->current_role = $request->current_role;
+                    $user->save();
                     $users = Auth::user();
                     $token =  $users->createToken('app_api')->accessToken; 
 		            return response()->json(['success'=>true,'message'=>'User Logged In successfully' ,'token'=>$token,'user_info'=>$user]);
@@ -121,7 +141,7 @@ class RegisterController extends BaseController
 
     public function me()
     {
-        $user = User::with(['goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first(); 
+        $user = User::with(['child','goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first(); 
         return response()->json(['success'=>true,'message'=>'User Fetch successfully','user_info'=>$user]);
     }
     public function logout()
@@ -194,9 +214,11 @@ class RegisterController extends BaseController
 	
 	public function cron_plane()
 	{
-		try 
+        // return Carbon::now()->addDays(7)->day();
+        try 
         {
-            $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+            // $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+            $stripe = \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
             $users = User::with('goal')->get();
             foreach($users as $user)
             {
@@ -204,32 +226,37 @@ class RegisterController extends BaseController
                 if($user->goal)
                 {
                     $payment = Payment::where('customer_id',$user->stripe_id)->orderBy('id','desc')->first();                
+                    // return $payment;
+                    // return $payment->created_at;
                     $days = Carbon::parse($payment->created_at)->diffInDays(Carbon::now());
-                    $temporarywallet = TemporaryWallet::where('user_id',$user->id)->first();
+                     $temporarywallet = TemporaryWallet::where('user_id',$user->id)->first();
                     $wallet = Wallet::where('user_id',$user->id)->first();
                     
                     if($user->goal->cnd < $user->goal->number_deduction)
-                    {
+                    { 
                         if($user->goal->plan == 'Weekly')
                         {
+
                             if($days == '6')
                             {
-                                Helper::twodaybefore();
+                                Helper::twodaybefore($user->id);
                             }
                             if($days == '7')
                             {
-                                Helper::onedaybefore();
+                                Helper::onedaybefore($user->id);
                             }
                             if( $days == '8')
                             {
+                                $perdeduction = $user->goal->amount_per_deduction;
                                 $charge = \Stripe\Charge::create([
-                                    'amount' => $user->goal->amount_per_deduction*100,
+                                    'amount' => $perdeduction*100,
                                     'currency' => 'usd',
                                     'customer' => $user->stripe_id,
                                 ]);
-
-                                Payment::create([
-                                    'amount' => $payment->amount + $user->goal->amount_per_deduction,
+								
+                               // return $chargp;
+								Payment::create([
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0) ,
                                     'customer_id' => $user->stripe_id,
                                     'currency' => 'usd',
                                 ]);
@@ -238,27 +265,29 @@ class RegisterController extends BaseController
                                 ]);
 
                                 $temporarywallet->update([
-                                    'amount' => $temporarywallet->amount + $user->goal->amount_per_deduction,
+                                    'amount' => $temporarywallet->amount + $perdeduction,
                                 ]);
-
                                 
-                                Helper::payment_charge();
-
+                                Helper::payment_charge($user->id);
+                                
                                 if($user->goal->cnd == $user->goal->number_deduction)
                                 {
-                                    Helper::goal_complete();
+                                    Helper::goal_complete($user->id);
                                     
                                     Payment::where('customer_id',$user->stripe_id)->delete();
-                                    Tranasaction::create([
+                                    /* Tranasaction::create([
                                         'user_id' => $user->id,
                                         'amount' => $wallet->amout + $temporarywallet->amount,
                                         'date' => date('M-d-Y'),
                                         'reason' => 'Goal Complete',
                                         'type' => 'Credit',
                                         'status' => 'Credit',
-                                    ]);
+                                    ]); */
                                     Helper::goal_history($user->id);
-
+                                    $user->goal->delete();
+                                    
+                                    $point = Helper::goalpoint($user->id);
+                                    
                                     Tranasaction::create([
                                         'user_id' => $user->id,
                                         'amount' => $wallet->amout + $temporarywallet->amount,
@@ -268,16 +297,17 @@ class RegisterController extends BaseController
                                         'status' => 'Credit',
                                     ]);
 									
-                                    $point = Helper::goalpoint();
+                                    
+                                    
 									
-									$user->goal->delete();
+									
                                     $wallet->update([
                                         'amount' => $wallet->amout + $temporarywallet->amount,
                                     ]);
 
                                     $user->update([
                                         'is_goal' => 0,
-										'points' => $point
+                                        'points' => $point
                                     ]);
 
                                     $temporarywallet->update([
@@ -288,43 +318,56 @@ class RegisterController extends BaseController
 
                             if($days == '13')
                             {
-                                Helper::twodaybefore();
+                                Helper::twodaybefore($user->id);
                             }
                             if($days == '14')
                             {
-                                Helper::onedaybefore();
+                                Helper::onedaybefore($user->id);
                             }
                             if($days == '15')
                             {
 
-                                $penalty =  $user->goal->amount_save / 10;
-                                $chargeamount = $user->goal->amount_per_deduction + $penalty;
+                                // $penalty =  $user->goal->amount_save ;
+                                // $chargeamount = $user->goal->amount_per_deduction + $penalty;
+                                $chargeamount = $user->goal->amount_per_deduction * 2;
+								$perdeduction = $user->goal->amount_per_deduction;
+                                
                                 $charge = \Stripe\Charge::create([
-                                    'amount' => $chargeamount*100,
+                                    'amount' => round($chargeamount),
                                     'currency' => 'usd',
                                     'customer' => $user->stripe_id,
                                 ]);
 
+								Payment::create([
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
+                                    'status' => 'Late Payment',
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+									
+								$payment = Payment::where('customer_id',$user->stripe_id)->orderBy('id','desc')->first(); 
+                                
                                 Payment::create([
-                                    'amount' => $payment->amount + $user->goal->amount_per_deduction,
-                                    'penalty' => $penalty,
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0) ,
+                                    'status' => 'Late Payment',
                                     'customer_id' => $user->stripe_id,
                                     'currency' => 'usd',
                                 ]);
                                 $user->goal->update([
-                                    'cnd' => $user->goal->cnd + 1
+                                    'cnd' => $user->goal->cnd + 2
                                 ]);
 
                                 $temporarywallet->update([
-                                    'amount' => $temporarywallet->amount + $user->goal->amount_per_deduction,
+                                    'amount' => $temporarywallet->amount + $chargeamount,
                                 ]);
 
                                 
-                                Helper::payment_charge();
+                                Helper::payment_charge($user->id);
+                                
 
                                 if($user->goal->cnd == $user->goal->number_deduction)
                                 {
-                                    Helper::goal_complete();
+                                    Helper::goal_complete($user->id);
                                     
                                     Payment::where('customer_id',$user->stripe_id)->delete();
                                     Helper::goal_history($user->id);
@@ -337,13 +380,14 @@ class RegisterController extends BaseController
                                         'status' => 'Credit',
                                     ]);
 
-                                    $point = Helper::goalpoint();
+                                    
 									
 									$user->goal->delete();
                                     $wallet->update([
                                         'amount' => $wallet->amout + $temporarywallet->amount,
                                     ]);
-
+                                    $point = Helper::lategoalpoint(2,$user->id);
+                                
                                     $user->update([
                                         'is_goal' => 0,
 										'points' => $point
@@ -357,42 +401,58 @@ class RegisterController extends BaseController
                             
                             if($days == '20')
                             {
-                                Helper::twodaybefore();
+                                Helper::twodaybefore($user->id);
                             }
                             if($days == '21')
                             {
-                                Helper::onedaybefore();
+                                Helper::onedaybefore($user->id);
                             }
                             if($days == '22')
                             {
 
-                                $penalty =  $user->goal->amount_save / 10;
-                                $chargeamount = $user->goal->amount_per_deduction + $penalty;
+                                $chargeamount = $user->goal->amount_per_deduction * 3;
+                                $perdeduction = $user->goal->amount_per_deduction;
+								
                                 $charge = \Stripe\Charge::create([
                                     'amount' => $chargeamount*100,
                                     'currency' => 'usd',
                                     'customer' => $user->stripe_id,
                                 ]);
-
                                 Payment::create([
-                                    'amount' => $payment->amount + $user->goal->amount_per_deduction,
-                                    'penalty' => $penalty,
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0) ,
+                                    'penalty' => 'Late Payment',
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+                                $payment = Payment::where('customer_id',$user->stripe_id)->orderBy('id','desc')->first();
+                                Payment::create([
+                                    'amount' =>round(($payment) ? $perdeduction + $payment->amount : 0),
+                                    'penalty' => 'Late Payment',
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+								
+								$payment = Payment::where('customer_id',$user->stripe_id)->orderBy('id','desc')->first();
+                                Payment::create([
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
+                                    'penalty' => 'Late Payment',
                                     'customer_id' => $user->stripe_id,
                                     'currency' => 'usd',
                                 ]);
                                 $user->goal->update([
-                                    'cnd' => $user->goal->cnd + 1
+                                    'cnd' => $user->goal->cnd + 3
                                 ]);
 
+
                                 $temporarywallet->update([
-                                    'amount' => $temporarywallet->amount + $user->goal->amount_per_deduction,
+                                    'amount' => $temporarywallet->amount + $chargeamount,
                                 ]);
                                 
-                                Helper::payment_charge();
+                                Helper::payment_charge($user->id);
 
                                 if($user->goal->cnd == $user->goal->number_deduction)
                                 {
-                                    Helper::goal_complete();
+                                    Helper::goal_complete($user->id);
                                     
                                     Payment::where('customer_id',$user->stripe_id)->delete();
                                     Helper::goal_history($user->id);
@@ -405,7 +465,7 @@ class RegisterController extends BaseController
                                         'status' => 'Credit',
                                     ]);
                                    
-                                    $point = Helper::goalpoint();
+                                    $point = Helper::lategoalpoint(4,$user->id);
 									
 									$user->goal->delete();
                                     $wallet->update([
@@ -425,17 +485,18 @@ class RegisterController extends BaseController
 
                             if($days == '27')
                             {
-                                Helper::twodaybefore();
+                                Helper::twodaybefore($user->id);
                             }
                             if($days == '28')
                             {
-                                Helper::onedaybefore();
+                                Helper::onedaybefore($user->id);
                             }
                             if($days == '29')
                             {
 
-                                $penalty =  $user->goal->amount_save / 10;
-                                $chargeamount = $user->goal->amount_per_deduction + $penalty;
+                                $chargeamount = $user->goal->amount_per_deduction * 4;
+								$perdeduction = $user->goal->amount_per_deduction;
+                                
                                 $charge = \Stripe\Charge::create([
                                     'amount' => $chargeamount*100,
                                     'currency' => 'usd',
@@ -443,8 +504,29 @@ class RegisterController extends BaseController
                                 ]);
 
                                 Payment::create([
-                                    'amount' => $payment->amount + $user->goal->amount_per_deduction,
-                                    'penalty' => $penalty,
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0) ,
+                                    'penalty' => 'Late Payment',
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+                                $payment = Payment::where('customer_id',$user->stripe_id)->orderBy('id','desc')->first();
+                                Payment::create([
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
+                                    'penalty' => 'Late Payment',
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+								$payment = Payment::where('customer_id',$user->stripe_id)->orderBy('id','desc')->first();
+                                Payment::create([
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
+                                    'penalty' => 'Late Payment',
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+								$payment = Payment::where('customer_id',$user->stripe_id)->orderBy('id','desc')->first();
+                                Payment::create([
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
+                                    'penalty' => 'Late Payment',
                                     'customer_id' => $user->stripe_id,
                                     'currency' => 'usd',
                                 ]);
@@ -452,16 +534,17 @@ class RegisterController extends BaseController
                                     'cnd' => $user->goal->cnd + 1
                                 ]);
 
+                                
                                 $temporarywallet->update([
-                                    'amount' => $temporarywallet->amount + $user->goal->amount_per_deduction,
+                                    'amount' => $temporarywallet->amount + $chargeamount,
                                 ]);
                                 
                                 // Notification payment
-                                Helper::payment_charge();
+                                Helper::payment_charge($user->id);
 
                                 if($user->goal->cnd == $user->goal->number_deduction)
                                 {
-                                    Helper::goal_complete();
+                                    Helper::goal_complete($user->id);
                                     Payment::where('customer_id',$user->stripe_id)->delete();
                                     Helper::goal_history($user->id);
                                     Tranasaction::create([
@@ -472,6 +555,74 @@ class RegisterController extends BaseController
                                         'type' => 'Credit',
                                         'status' => 'Credit',
                                     ]);
+                                    $point = Helper::lategoalpoint(6,$user->id);
+									
+									$user->goal->delete();
+                                    $wallet->update([
+                                        'amount' => $wallet->amout + $temporarywallet->amount,
+                                    ]);
+
+                                    $user->update([
+                                        'is_goal' => 0,
+										'points' => $point
+                                    ]);
+
+                                    $temporarywallet->update([
+                                        'amount' => 0,
+                                    ]);
+                                }
+                            } 
+                        }
+                    
+                        if($user->goal->plan == 'bi-weekly')
+                        {
+                            // return $user->stripe_id;
+                            if($days == '12')
+                            {
+                                Helper::twodaybefore($user->id);
+                            }
+                            if($days == '13')
+                            {
+                                Helper::onedaybefore($user->id);
+                            }
+                            if($days == '15')
+                            {
+								$perdeduction = $user->goal->amount_per_deduction;
+                                $charge = \Stripe\Charge::create([
+                                    'amount' => $user->goal->amount_per_deduction*100,
+                                    'currency' => 'usd',
+                                    'customer' => $user->stripe_id,
+                                ]);
+
+                                Payment::create([
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+                                $user->goal->update([
+                                    'cnd' => $user->goal->cnd + 1
+                                ]);
+                                
+                                $temporarywallet->update([
+                                    'amount' => $temporarywallet->amount + $perdeduction,
+                                ]);
+                                
+                                Helper::payment_charge($user->id);
+                                if($user->goal->cnd == $user->goal->number_deduction)
+                                {
+                                    Helper::goal_complete($user->id);                                  
+                                    Payment::where('customer_id',$user->stripe_id)->delete();
+                                    Helper::goal_history($user->id);
+                                    
+                                    Tranasaction::create([
+                                        'user_id' => $user->id,
+                                        'amount' => $wallet->amout + $temporarywallet->amount,
+                                        'date' => date('M-d-Y'),
+                                        'reason' => 'Goal Complete',
+                                        'type' => 'Credit',
+                                        'status' => 'Credit',
+                                    ]);
+                                    
                                     $point = Helper::goalpoint();
 									
 									$user->goal->delete();
@@ -489,46 +640,52 @@ class RegisterController extends BaseController
                                     ]);
                                 }
                             }
-                        }
-                    
-                        if($user->goal->plan == 'bi-weekly')
-                        {
-                            // return $user->stripe_id;
-                            if($days == '12')
+                            
+                            if($days == '28')
                             {
-                                Helper::twodaybefore();
+                                Helper::twodaybefore($user->id);
                             }
-                            if($days == '13')
+                            if($days == '29')
                             {
-                                Helper::onedaybefore();
+                                Helper::onedaybefore($user->id);
                             }
-                            if($days > '14')
+                            if($days == '30')
                             {
+								$chargeamount = $user->goal->amount_per_deduction * 2;
+								$perdeduction = $user->goal->amount_per_deduction;
                                 $charge = \Stripe\Charge::create([
-                                    'amount' => $user->goal->amount_per_deduction*100,
+                                    'amount' => $chargeamount*100,
                                     'currency' => 'usd',
                                     'customer' => $user->stripe_id,
                                 ]);
 
                                 Payment::create([
-                                    'amount' => $user->goal->amount_per_deduction,
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
+                                    'customer_id' => $user->stripe_id,
+                                    'currency' => 'usd',
+                                ]);
+								$payment = Payment::where('customer_id',$user->stripe_id)->orderBy('id','desc')->first();
+								Payment::create([
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
                                     'customer_id' => $user->stripe_id,
                                     'currency' => 'usd',
                                 ]);
                                 $user->goal->update([
                                     'cnd' => $user->goal->cnd + 1
                                 ]);
+                                
+								
                                 $temporarywallet->update([
-                                    'amount' => $temporarywallet->amount + $user->goal->amount_per_deduction,
+                                    'amount' => $temporarywallet->amount + $chargeamount,
                                 ]);
                                 
-                                Helper::payment_charge();
+                                Helper::payment_charge($user->id);
                                 if($user->goal->cnd == $user->goal->number_deduction)
                                 {
-                                    Helper::goal_complete();
-                                                                       
+                                    Helper::goal_complete($user->id);                                  
                                     Payment::where('customer_id',$user->stripe_id)->delete();
                                     Helper::goal_history($user->id);
+                                    
                                     Tranasaction::create([
                                         'user_id' => $user->id,
                                         'amount' => $wallet->amout + $temporarywallet->amount,
@@ -538,7 +695,7 @@ class RegisterController extends BaseController
                                         'status' => 'Credit',
                                     ]);
                                     
-                                    $point = Helper::goalpoint();
+                                    $point = Helper::lategoalpoint();
 									
 									$user->goal->delete();
                                     $wallet->update([
@@ -561,14 +718,15 @@ class RegisterController extends BaseController
                         {
                             if($days == '29')
                             {
-                                Helper::twodaybefore();
+                                Helper::twodaybefore($user->id);
                             }
                             if($days == '30')
                             {
-                                Helper::onedaybefore();
+                                Helper::onedaybefore($user->id);
                             }
                             if($monthdays > '30')
                             {
+								$perdeduction = $user->goal->amount_per_deduction;
                                 $charge = \Stripe\Charge::create([
                                     'amount' => $user->goal->amount_per_deduction*100,
                                     'currency' => 'usd',
@@ -576,7 +734,7 @@ class RegisterController extends BaseController
                                 ]);
 
                                 Payment::create([
-                                    'amount' => $user->goal->amount_per_deduction,
+                                    'amount' => round(($payment) ? $perdeduction + $payment->amount : 0),
                                     'customer_id' => $user->stripe_id,
                                     'currency' => 'usd',
                                 ]);
@@ -584,15 +742,13 @@ class RegisterController extends BaseController
                                     'cnd' => $user->goal->cnd + 1
                                 ]);
                                 $temporarywallet->update([
-                                    'amount' => $temporarywallet->amount + $user->goal->amount_per_deduction,
+                                    'amount' => $temporarywallet->amount + $perdeduction,
                                 ]);
 
-                                
-                                Helper::payment_charge();
+                                Helper::payment_charge($user->id);
                                 if($user->goal->cnd == $user->goal->number_deduction)
                                 {
-                                    Helper::goal_complete();
-                                    
+                                    Helper::goal_complete($user->id);                                    
                                     Payment::where('user_id',$user->id)->delete();
                                     Helper::goal_history($user->id);
                                     
@@ -630,6 +786,7 @@ class RegisterController extends BaseController
             // Display the error message to the customer
             return response()->json(['error'=>$e->getMessage()]);
         }
+
     }
 
 }

@@ -1,11 +1,11 @@
-@extends('backend.layouts.master')
+@extends('admin.layouts.master')
 
-@section('main-content')
+@section('content')
  <!-- DataTales Example -->
  <div class="card shadow mb-4">
      <div class="row">
          <div class="col-md-12">
-            @include('backend.layouts.notification')
+            @include('admin.layouts.notification')
          </div>
      </div>
     <div class="card-header py-3">
@@ -55,20 +55,31 @@
                     <td>@foreach($shipping_charge as $data) $ {{number_format($data,2)}} @endforeach</td>
                     <td>${{number_format($order->total_amount,2)}}</td>
                     <td>
-                        @if($order->status=='new')
+                        @if($order->status=='parent-approval')
                           <span class="badge badge-primary">{{$order->status}}</span>
-                        @elseif($order->status=='process')
-                          <span class="badge badge-warning">{{$order->status}}</span>
-                        @elseif($order->status=='delivered')
-                          <span class="badge badge-success">{{$order->status}}</span>
-                        @else
+                        @elseif($order->status=='rejected')
                           <span class="badge badge-danger">{{$order->status}}</span>
+                        @elseif($order->status=='admin-approval' || $order->status=='ongoing' )
+                        <div class="btn-group">
+                          <button type="button" class="btn {{ ($order->status == 'ongoing' ) ?  'btn-info' : 'btn-warning'  }}" >{{$order->status}}</button>
+                          <button type="button" class="btn btn-default dropdown-toggle dropdown-icon" data-toggle="dropdown">
+                            <span class="sr-only">Toggle Dropdown</span>
+                          </button>
+                          <div class="dropdown-menu" role="menu">
+                            <a class="dropdown-item" href="{{route('orders.update',$order->id.'?status=ongoing')}}">ongoing</a>
+                            <a class="dropdown-item" href="{{route('orders.update',$order->id.'?status=completed')}}">completed</a>
+                          </div>
+                        </div>
+                          <!-- <span class="badge badge-warning">{{$order->status}}</span> -->
+                        @elseif($order->status=='completed')
+                        <span class="badge badge-success">{{$order->status}}</span>
+                        
                         @endif
                     </td>
                     <td>
-                        <a href="{{route('order.show',$order->id)}}" class="btn btn-warning btn-sm float-left mr-1" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="view" data-placement="bottom"><i class="fas fa-eye"></i></a>
-                        <a href="{{route('order.edit',$order->id)}}" class="btn btn-primary btn-sm float-left mr-1" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="edit" data-placement="bottom"><i class="fas fa-edit"></i></a>
-                        <form method="POST" action="{{route('order.destroy',[$order->id])}}">
+                        <!-- <a href="{{route('orders.show',$order->id)}}" class="btn btn-warning btn-sm float-left mr-1" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="view" data-placement="bottom"><i class="fas fa-eye"></i></a>
+                        <a href="{{route('orders.edit',$order->id)}}" class="btn btn-primary btn-sm float-left mr-1" style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" title="edit" data-placement="bottom"><i class="fas fa-edit"></i></a> -->
+                        <form method="POST" action="{{route('orders.destroy',[$order->id])}}">
                           @csrf 
                           @method('delete')
                               <button class="btn btn-danger btn-sm dltBtn" data-id={{$order->id}} style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" data-placement="bottom" title="Delete"><i class="fas fa-trash-alt"></i></button>

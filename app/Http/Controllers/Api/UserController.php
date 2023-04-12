@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\BaseController as BaseController;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Child;
 use App\Models\Notification;
 use Image;
 use File;
@@ -16,7 +17,7 @@ class UserController extends BaseController
 {
 	public function __construct()
     {
-          $stripe = \Stripe\Stripe::setApiKey('sk_test_51LCrVHHNvw3AIrpxjbOuGKoRaQ3K68ZDXrgU41PRmyDb9eH7h9qShHEn1T8gEUV7amg1TfNSy1cVXWaREFgcfmMr00yqKik6dg');
+		$stripe = \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
     }
 
 	public function un_reead_notification()
@@ -35,7 +36,8 @@ class UserController extends BaseController
 					'id' => $row->id,
 					'title' => $row->data['title'],
 					'description' => $row->data['description'],
-					'created_at' => $row->data['time']
+					'created_at' => $row->data['time'],
+					'status' => 'unread'
 				];
 				// $data[] = $row->data;
 			}
@@ -46,15 +48,16 @@ class UserController extends BaseController
 
 			foreach($notificationold as $row)
 			{
-				$olddata[] = [
+				$data[] = [
 					'id' => $row->id,
 					'title' => $row->data['title'],
 					'description' => $row->data['description'],
-					'read_at' => $row->data['time']
+					'read_at' => $row->data['time'],
+					'status' => 'read'
 				];
 			}
 		}
-		return response()->json(['success'=>true,'unread'=> $unread,'read'=> $read,'un_readnotification' => $data ,'read_notification' => $olddata]);
+		return response()->json(['success'=>true,'unread'=> $unread,'read'=> $read,'notification' => $data]);
 	}
 	
 	
@@ -98,53 +101,74 @@ class UserController extends BaseController
     public function profile(Request $request)
     {
         try{
-                    //$user = User::findOrFail(Auth::id());
-					$user = User::with(['goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first();
-                    $validator = Validator::make($request->all(),[
-                        'first_name' =>'string',
-                        'last_name' =>'string',
-                        'phone' =>'numeric',
-                        'email' => 'email|unique:users,email,'.$user->id,
-                        'country'=>'string',
-						'photo' => 'image|mimes:jpeg,png,jpg,bmp,gif,svg|max:2048',
-                    ]);
-                    if($validator->fails())
-                    {
-                     return $this->sendError($validator->errors()->first());
-            
-                    }
-                    $profile = $user->photo;
+			$olduser = User::with(['child','goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first();
+			$child = Child::where('user_id',Auth::user()->id)->first();
+			$validator = Validator::make($request->all(),[
+				'first_name' =>'string',
+				'last_name' =>'string',
+				'child_name' => 'string',
+				'child_age' => 'string',
+				'child_gander' => 'string',
+				'passcode' => 'numeric',
+				'child_image' =>'string',
+				'phone' =>'numeric',
+				'email' => 'email|unique:users,email,'.$olduser->id,
+				'country'=>'string',
+				'photo' => 'image|mimes:jpeg,png,jpg,bmp,gif,svg|max:2048',
+			]);
+			if($validator->fails())
+			{
+				return $this->sendError($validator->errors()->first());
+	
+			}
+			$profile = $olduser->photo;
+			$child_image = $olduser->child_image;
 
-					if($request->hasFile('photo')) 
-					{
-							$file = request()->file('photo');
-							$fileName = md5($file->getClientOriginalName() . time()) . "PayMefirst." . $file->getClientOriginalExtension();
-							$file->move('uploads/user/profiles/', $fileName);  
-							$profile = asset('uploads/user/profiles/'.$fileName);
-					}
-                $user->first_name = $request->first_name;
-                $user->last_name = $request->last_name;
-                $user->email = $request->email;
-                $user->country = $request->country;
-                $user->photo = $profile;
-                $user->save();
+			if($request->hasFile('child_image')) 
+			{
+				$file1 = request()->file('child_image');
+				$fileName1 = md5($file1->getClientOriginalName() . time()) . "child_image." . $file1->getClientOriginalExtension();
+				$file1->move('uploads/user/profiles/', $fileName1);  
+				$child_image = asset('uploads/user/profiles/'.$fileName1);
+			}
+			
+			if($request->hasFile('photo')) 
+			{
+				$file = request()->file('photo');
+				$fileName = md5($file->getClientOriginalName() . time()) . "PayMefirst." . $file->getClientOriginalExtension();
+				$file->move('uploads/user/profiles/', $fileName);  
+				$profile = asset('uploads/user/profiles/'.$fileName);
+			}
+			$olduser->first_name = $request->first_name;
+			$olduser->last_name = $request->last_name;
+			$olduser->email = $request->email;
+			$olduser->country = $request->country;
+			$olduser->passcode = $request->passcode;
+			$olduser->photo = $profile;
+			$olduser->save();
 
-                return response()->json(['success'=>true,'message'=>'Profile Updated Successfully','user_info'=>$user]);
+			$child->update([
+				'name' => $request->child_name,
+				'age' => $request->child_age,
+				'gander' => $request->child_gander,
+				'image' => $child_image,
+			]);
 
-            }catch(\Eception $e){
-                
-                 return $this->sendError($e->getMessage());
-        
-               
-            }
-                
+			$user = User::with(['child','goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first();
+
+			return response()->json(['success'=>true,'message'=>'Profile Updated Successfully','user_info'=>$user]);
+		}
+		catch(\Eception $e)
+		{
+			return $this->sendError($e->getMessage());
+		}        
    
     }
 	public function current_plan(Request $request)
 	{
 		try{
 		//$user= User::findOrFail(Auth::id());
-		$user = User::with(['goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first();
+		$user = User::with(['child','goal','temporary_wallet','wallet','payments'])->where('id',Auth::user()->id)->first();
 		
 		$amount = 100;
 		$charge = \Stripe\Charge::create([
